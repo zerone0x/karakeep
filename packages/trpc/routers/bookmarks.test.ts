@@ -1899,11 +1899,16 @@ describe("Bookmark Routes", () => {
         ).bookmarkId,
       ).toEqual(withQuery.id);
 
-      // Paths that only share a prefix still don't match
+      // A saved path that only extends the current one doesn't match, even
+      // though the LIKE prefix selects it
+      await api.createBookmark({
+        url: "https://example.com/items/10",
+        type: BookmarkTypes.LINK,
+      });
       expect(
         (
           await api.checkUrl({
-            url: "https://example.com/models/10?modelVersionId=2",
+            url: "https://example.com/items/1?modelVersionId=2",
             ignoreQuery: true,
           })
         ).bookmarkId,

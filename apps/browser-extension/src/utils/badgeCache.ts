@@ -54,6 +54,23 @@ export async function getBadgeStatus(url: string): Promise<string | null> {
 }
 
 /**
+ * Origin + path of a URL (no query, hash or trailing slash), or null if it
+ * can't be parsed.
+ */
+function urlWithoutQuery(url: string): string | null {
+  try {
+    const u = new URL(url);
+    let pathname = u.pathname;
+    if (pathname.endsWith("/") && pathname !== "/") {
+      pathname = pathname.slice(0, -1);
+    }
+    return u.origin + pathname;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Clear badge status cache for a specific URL or all URLs.
  * @param url The URL to clear. If not provided, clears the entire cache.
  */
@@ -63,6 +80,23 @@ export async function clearBadgeStatus(url?: string): Promise<void> {
 
   if (url) {
     await queryClient.invalidateQueries({ queryKey: ["badgeStatus", url] });
+    // With "ignore query parameters", saving or deleting one query variant
+    // also changes the status of the others, so invalidate those as well.
+    const base = urlWithoutQuery(url);
+    if (base) {
+      await queryClient.invalidateQueries({
+        queryKey: ["badgeStatus"],
+        predicate: (query) => {
+          const [, keyUrl, options] = query.queryKey;
+          return (
+            (options as { ignoreQuery?: boolean } | undefined)?.ignoreQuery ===
+              true &&
+            typeof keyUrl === "string" &&
+            urlWithoutQuery(keyUrl) === base
+          );
+        },
+      });
+    }
   } else {
     await queryClient.invalidateQueries({ queryKey: ["badgeStatus"] });
   }
